@@ -51,6 +51,12 @@ class RadixSortTest {
         RadixSort.unrollOnePassHistogramsSkipLevels(data);
       }
     },
+    UNROLL_ONE_PASS_HISTOGRAMS_SKIP_LEVELS_SIGNED {
+      @Override
+      void sort(int[] data) {
+        RadixSort.unrollOnePassHistogramsSkipLevelsSigned(data);
+      }
+    },
     UNROLL_ONE_PASS_HISTOGRAMS_SKIP_LEVELS_BUFFER {
       @Override
       void sort(int[] data) {
@@ -67,6 +73,12 @@ class RadixSortTest {
       @Override
       void sort(int[] data) {
         RadixSort.unrollOnePassHistogramsSkipLevelsWithDetection(data, new int[data.length]);
+      }
+    },
+    JDK {
+      @Override
+      void sort(int[] data) {
+        RadixSort.jdk(data);
       }
     };
 

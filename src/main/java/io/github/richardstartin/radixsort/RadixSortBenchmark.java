@@ -86,6 +86,11 @@ public class RadixSortBenchmark {
     return data;
   }
 
+  @Benchmark
+  public int[] unrollOnePassSkipLevelsSigned() {
+    RadixSort.unrollOnePassHistogramsSkipLevelsSigned(data);
+    return data;
+  }
 
   @Benchmark
   public int[] unrollOnePassSkipLevelsBuffer() {
@@ -103,6 +108,12 @@ public class RadixSortBenchmark {
   @Benchmark
   public int[] unrollOnePassSkipLevelsBufferWithDetection() {
     RadixSort.unrollOnePassHistogramsSkipLevels(data, buffer);
+    return data;
+  }
+
+  @Benchmark
+  public int[] jdk() {
+    RadixSort.jdk(data);
     return data;
   }
 

@@ -393,6 +393,89 @@ public class RadixSort {
     }
   }
 
+  public static void unrollOnePassHistogramsSkipLevelsSigned(int[] data) {
+    int[] histogram1 = new int[257];
+    int[] histogram2 = new int[257];
+    int[] histogram3 = new int[257];
+    int[] histogram4 = new int[257];
+
+    for (int value : data) {
+      ++histogram1[(signed(value) & 0xFF) + 1];
+      ++histogram2[((signed(value) >>> 8) & 0xFF) + 1];
+      ++histogram3[((signed(value) >>> 16) & 0xFF) + 1];
+      ++histogram4[(signed(value) >>> 24) + 1];
+    }
+    boolean skipLevel1 = canSkipLevel(histogram1, data.length);
+    boolean skipLevel2 = canSkipLevel(histogram2, data.length);
+    boolean skipLevel3 = canSkipLevel(histogram3, data.length);
+    boolean skipLevel4 = canSkipLevel(histogram4, data.length);
+
+    if (skipLevel1 && skipLevel2 && skipLevel3 && skipLevel4) {
+      return;
+    }
+
+    int[] source = data;
+    int[] dest = new int[data.length];
+
+    if (!skipLevel1) {
+      for (int i = 1; i < histogram1.length; ++i) {
+        histogram1[i] += histogram1[i - 1];
+      }
+      for (int value : source) {
+        dest[histogram1[signed(value) & 0xFF]++] = value;
+      }
+      if (!skipLevel2 || !skipLevel3 || !skipLevel4) {
+        int[] tmp = dest;
+        dest = source;
+        source = tmp;
+      }
+    }
+
+    if (!skipLevel2) {
+      for (int i = 1; i < histogram2.length; ++i) {
+        histogram2[i] += histogram2[i - 1];
+      }
+      for (int value : source) {
+        dest[histogram2[(signed(value) >>> 8) & 0xFF]++] = value;
+      }
+      if (!skipLevel3 || !skipLevel4) {
+        int[] tmp = dest;
+        dest = source;
+        source = tmp;
+      }
+    }
+
+    if (!skipLevel3) {
+      for (int i = 1; i < histogram3.length; ++i) {
+        histogram3[i] += histogram3[i - 1];
+      }
+      for (int value : data) {
+        dest[histogram3[(signed(value) >>> 16) & 0xFF]++] = value;
+      }
+      if (!skipLevel4) {
+        int[] tmp = dest;
+        dest = source;
+        source = tmp;
+      }
+    }
+
+    if (!skipLevel4) {
+      for (int i = 1; i < histogram4.length; ++i) {
+        histogram4[i] += histogram4[i - 1];
+      }
+      for (int value : source) {
+        dest[histogram4[signed(value) >>> 24]++] = value;
+      }
+    }
+    if (dest != data) {
+      System.arraycopy(dest, 0, data, 0, data.length);
+    }
+  }
+
+  private static int signed(int value) {
+    return value - Integer.MIN_VALUE;
+  }
+
 
   public static void unrollOnePassHistogramsSkipLevelsWithDetection(int[] data) {
     int[] histogram1 = new int[257];
@@ -594,5 +677,107 @@ public class RadixSort {
     if (dest != data) {
       System.arraycopy(dest, 0, data, 0, data.length);
     }
+  }
+
+
+
+  // from https://github.com/openjdk/jdk/pull/3938
+  static boolean jdk(int[] a) {
+    int[] b = new int[a.length];
+
+    int[] count1 = new int[256];
+    int[] count2 = new int[256];
+    int[] count3 = new int[256];
+    int[] count4 = new int[256];
+
+    for (int i = 0; i < a.length; ++i) {
+      count1[ a[i]         & 0xFF]--;
+      count2[(a[i] >>>  8) & 0xFF]--;
+      count3[(a[i] >>> 16) & 0xFF]--;
+      count4[(a[i] >>> 24) ^ 0x80]--;
+    }
+
+    boolean passLevel4 = passLevel(count4, 255, a.length, a.length);
+    boolean passLevel3 = passLevel(count3, 255, a.length, a.length);
+    boolean passLevel2 = passLevel(count2, 255, a.length, a.length);
+    boolean passLevel1 = passLevel(count1, 255, a.length, a.length);
+
+    if (passLevel1) {
+      for (int i = 0; i < a.length; ++i) {
+        b[count1[a[i] & 0xFF]++] = a[i];
+      }
+    }
+
+    if (passLevel2) {
+      if (passLevel1) {
+        for (int i = 0; i < a.length; ++i) {
+          a[count2[(b[i] >>> 8) & 0xFF]++] = b[i];
+        }
+      } else {
+        for (int i = 0; i < a.length; ++i) {
+          b[count2[(a[i] >>> 8) & 0xFF]++] = a[i];
+        }
+      }
+    }
+
+    if (passLevel3) {
+      if (passLevel1 ^ passLevel2) {
+        for (int i = 0; i < a.length; ++i) {
+          a[count3[(b[i] >>> 16) & 0xFF]++] = b[i];
+        }
+      } else {
+        for (int i = 0; i < a.length; ++i) {
+          b[count3[(a[i] >>> 16) & 0xFF]++] = a[i];
+        }
+      }
+    }
+
+    if (passLevel4) {
+      if (passLevel1 ^ passLevel2 ^ passLevel3) {
+        for (int i = 0; i < a.length; ++i) {
+          a[count4[(b[i] >>> 24) ^ 0x80]++] = b[i];
+        }
+      } else {
+        for (int i = 0; i < a.length; ++i) {
+          b[count4[(a[i] >>> 24) ^ 0x80]++] = a[i];
+        }
+      }
+    }
+
+    if (passLevel1 ^ passLevel2 ^ passLevel3 ^ passLevel4) {
+      System.arraycopy(b, 0, a, 0, a.length);
+    }
+    return true;
+  }
+
+  /**
+   * Scans count array and creates histogram.
+   *
+   * @param count the count array
+   * @param last the index of the last count
+   * @param size the array size
+   * @param high the index of the last element, exclusive
+   * @return false if the level can be skipped, true otherwise
+   */
+  private static boolean passLevel(int[] count, int last, int size, int high) {
+    for (int c : count) {
+      if (c == 0) {
+        continue;
+      }
+      if (c == size) { // All elements are equal
+        return false;
+      }
+      break;
+    }
+
+    /*
+     * Compute histogram.
+     */
+    count[last] += high;
+
+    for (int i = last; i > 0; --i) {
+      count[i - 1] += count[i];
+    }
+    return true;
   }
 }
