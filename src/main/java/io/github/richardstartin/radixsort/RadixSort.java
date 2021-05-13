@@ -697,10 +697,10 @@ public class RadixSort {
       count4[(a[i] >>> 24) ^ 0x80]--;
     }
 
-    boolean passLevel4 = passLevel(count4, 255, a.length, a.length);
-    boolean passLevel3 = passLevel(count3, 255, a.length, a.length);
-    boolean passLevel2 = passLevel(count2, 255, a.length, a.length);
-    boolean passLevel1 = passLevel(count1, 255, a.length, a.length);
+    boolean passLevel4 = passLevel(count4, 255, -a.length, a.length);
+    boolean passLevel3 = passLevel(count3, 255, -a.length, a.length);
+    boolean passLevel2 = passLevel(count2, 255, -a.length, a.length);
+    boolean passLevel1 = passLevel(count1, 255, -a.length, a.length);
 
     if (passLevel1) {
       for (int i = 0; i < a.length; ++i) {
